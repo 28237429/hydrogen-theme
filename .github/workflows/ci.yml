@@ -1,6 +1,10 @@
 name: Storefront 1000033924
-on: [push]
-
+on:
+  push:
+    branches: [main]
+env:
+  DEPLOY_ENV: production    # 默认部署环境
+  
 permissions:
   contents: read
   deployments: write
@@ -18,10 +22,10 @@ jobs:
         with:
           node-version: "lts/*"
           check-latest: true
-
+          
       - name: Install pnpm
         run: npm install -g pnpm@8
-
+        
       - name: Cache pnpm modules
         id: cache-npm
         uses: actions/cache@v4
@@ -37,13 +41,22 @@ jobs:
             ${{ runner.os }}-build-
             ${{ runner.os }}-
 
-      - name: Install dependencies
-        run: pnpm install
-
       - name: Build project
-        run: pnpm build
+        run: |
+          pnpm install
+          pnpm build
+        env:
+          NODE_ENV: production  # 强制生产模式
 
+      - name: Install Shopify CLI
+        env:
+          PNPM_HOME: /usr/local/bin  # 指定全局安装路径
+        run: |
+          npm uninstall -g @shopify/cli @shopify/cli-hydrogen
+          npm install -g @shopify/cli@latest @shopify/cli-hydrogen@latest
+          shopify version
+            
       - name: Build and Publish to Oxygen
-        run: npx shopify hydrogen deploy
+        run: npx shopify hydrogen deploy --verbose --env production --path dist
         env:
           SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN: ${{ secrets.OXYGEN_DEPLOYMENT_TOKEN_1000033924 }}
