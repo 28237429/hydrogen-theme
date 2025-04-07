@@ -1,58 +1,49 @@
-name: CI
+name: Storefront 1000033924
+on: [push]
 
-on:
-  push:
-    branches:
-      - main
-
-  pull_request:
-    branches:
-      - main
+permissions:
+  contents: read
+  deployments: write
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 7
-
-      - name: Set node
-        uses: actions/setup-node@v3
-        with:
-          node-version: lts/*
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install
-
-      - name: Lint
-        run: pnpm lint
-
-  # lhci:
-  #   name: Lighthouse
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #
-  #     - name: Lighthouse
-  #       uses: shopify/lighthouse-ci-action@v1
-  #       with:
-  #         access_token: ${{ secrets.SHOP_ACCESS_TOKEN }}
-  #         store: ${{ secrets.SHOP_STORE }}
-  #         password: ${{ secrets.SHOP_PASSWORD }}
-  #         lhci_github_app_token: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
-
-  theme-check:
-    name: Theme Check
+  deploy:
+    name: Deploy to Oxygen
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Theme Check
-        uses: shopify/theme-check-action@v2
+      - name: Setup node.js
+        uses: actions/setup-node@v4
         with:
-          token: ${{ github.token }}
+          node-version: "lts/*"
+          check-latest: true
+
+      - name: Install pnpm
+        run: npm install -g pnpm@8
+
+      - name: Cache pnpm modules
+        id: cache-npm
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: |
+            ~/.pnpm-store
+            node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build project
+        run: pnpm build
+
+      - name: Build and Publish to Oxygen
+        run: npx shopify hydrogen deploy
+        env:
+          SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN: ${{ secrets.OXYGEN_DEPLOYMENT_TOKEN_1000033924 }}
